@@ -1,290 +1,115 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Particle Flowers 🧡</title>
+<title>Orange Flowers 🧡</title>
 <style>
 html,body{
   margin:0;
   width:100%;
   height:100%;
   overflow:hidden;
-  background:#070403;
+  background:#050302;
 }
-canvas{display:block}
+canvas{
+  display:block;
+}
 </style>
 </head>
 
 <body>
-<canvas id="canvas"></canvas>
+
+<canvas id="c"></canvas>
 
 <script>
-const canvas=document.getElementById("canvas");
-const ctx=canvas.getContext("2d");
+const c=document.getElementById("c");
+const ctx=c.getContext("2d");
 
-let W,H,DPR;
-let particles=[];
-let startTime=0;
-
-const colors=[
-  "#ff6500",
-  "#ff7f18",
-  "#ff9f2d",
-  "#ffc04a",
-  "#ffd878",
-  "#ff7043",
-  "#ffb347"
-];
+let w,h;
+let dots=[];
 
 function resize(){
-  DPR=Math.min(devicePixelRatio||1,2);
-  W=innerWidth;
-  H=innerHeight;
 
-  canvas.width=W*DPR;
-  canvas.height=H*DPR;
-  canvas.style.width=W+"px";
-  canvas.style.height=H+"px";
+  w=c.width=innerWidth;
+  h=c.height=innerHeight;
 
-  ctx.setTransform(DPR,0,0,DPR,0,0);
+  dots=[];
 
-  createScene();
-}
-
-function particle(tx,ty,size=1.5,type="flower",delay=0){
-  particles.push({
-    sx:W/2+(Math.random()-.5)*100,
-    sy:H+Math.random()*120,
-
-    tx,ty,
-
-    size:size*(.6+Math.random()*.8),
-    color:colors[Math.floor(Math.random()*colors.length)],
-
-    type,
-    delay,
-    duration:.42+Math.random()*.42,
-    phase:Math.random()*Math.PI*2
-  });
-}
-
-/* =========================
-   花朵
-========================= */
-
-function makeFlower(cx,cy,r,delay){
-
-  const count=420;
-
-  for(let i=0;i<count;i++){
+  /*
+    先生成很多随机粒子
+  */
+  for(let i=0;i<1800;i++){
 
     const a=Math.random()*Math.PI*2;
+    const r=Math.random()*140;
 
-    /*
-      花瓣不是圆，而是五瓣/六瓣的自然轮廓
-    */
-    const petalWave=
-      0.72+
-      0.25*Math.abs(Math.sin(a*3));
+    dots.push({
 
-    const rr=r*(.15+.85*Math.sqrt(Math.random()))*petalWave;
+      x:w/2+(Math.random()-.5)*120,
+      y:h+Math.random()*100,
 
-    const x=cx+Math.cos(a)*rr;
-    const y=cy+Math.sin(a)*rr*.72;
+      /*
+        目标位置：
+        多朵花
+      */
 
-    particle(
-      x,
-      y,
-      1.1+Math.random()*1.8,
-      "flower",
-      delay+Math.random()*.18
-    );
-  }
+      tx:w/2+
+        Math.cos(a)*r+
+        (Math.random()-.5)*260,
 
-  /* 花心 */
-  for(let i=0;i<110;i++){
+      ty:h*.38+
+        Math.sin(a)*r+
+        (Math.random()-.5)*180,
 
-    const a=Math.random()*Math.PI*2;
-    const rr=Math.sqrt(Math.random())*r*.22;
+      size:.8+Math.random()*2,
 
-    particle(
-      cx+Math.cos(a)*rr,
-      cy+Math.sin(a)*rr,
-      1.5+Math.random()*2,
-      "center",
-      delay
-    );
+      color:[
+        "#ff6500",
+        "#ff8c24",
+        "#ffb52e",
+        "#ffd166",
+        "#ff7043"
+      ][Math.floor(Math.random()*5)],
+
+      delay:Math.random()*0.5
+    });
   }
 }
 
-/* =========================
-   茎
-========================= */
+let start=performance.now();
 
-function makeStem(x,yTop,yBottom,delay){
+function draw(now){
 
-  for(let i=0;i<260;i++){
+  const t=(now-start)/1000;
 
-    const y=yTop+Math.random()*(yBottom-yTop);
+  ctx.fillStyle="rgba(5,3,2,.18)";
+  ctx.fillRect(0,0,w,h);
 
-    const curve=
-      x+
-      (y-yTop)*.06+
-      Math.sin(y*.025)*5;
+  for(const p of dots){
 
-    particle(
-      curve+(Math.random()-.5)*7,
-      y,
-      .9+Math.random()*1.2,
-      "stem",
-      delay+Math.random()*.15
-    );
-  }
-}
-
-/* =========================
-   叶子
-========================= */
-
-function makeLeaf(cx,cy,rx,ry,angle,delay){
-
-  for(let i=0;i<180;i++){
-
-    const a=(Math.random()-.5)*Math.PI;
-    const rr=Math.sqrt(Math.random());
-
-    let x=Math.cos(a)*rx*rr;
-    let y=Math.sin(a)*ry*rr;
-
-    const rotX=x*Math.cos(angle)-y*Math.sin(angle);
-    const rotY=x*Math.sin(angle)+y*Math.cos(angle);
-
-    particle(
-      cx+rotX,
-      cy+rotY,
-      1+Math.random()*1.5,
-      "leaf",
-      delay+Math.random()*.12
-    );
-  }
-}
-
-/* =========================
-   创建整束花
-========================= */
-
-function createScene(){
-
-  particles=[];
-
-  const baseY=H*.86;
-
-  const flowers=[
-    {x:W*.30,y:H*.36,r:58,d:.15},
-    {x:W*.42,y:H*.25,r:68,d:.35},
-    {x:W*.54,y:H*.33,r:62,d:.55},
-    {x:W*.66,y:H*.25,r:68,d:.75},
-    {x:W*.76,y:H*.37,r:57,d:.95},
-    {x:W*.37,y:H*.45,r:55,d:1.05},
-    {x:W*.58,y:H*.46,r:63,d:1.2},
-    {x:W*.69,y:H*.47,r:52,d:1.35}
-  ];
-
-  /*
-    先长茎
-  */
-  flowers.forEach((f,i)=>{
-    makeStem(
-      W*.5+(f.x-W*.5)*.35,
-      f.y,
-      baseY,
-      i*.08
-    );
-  });
-
-  /*
-    再开花
-  */
-  flowers.forEach(f=>{
-    makeFlower(
-      f.x,
-      f.y,
-      f.r,
-      f.d
-    );
-  });
-
-  /*
-    叶子
-  */
-  makeLeaf(W*.34,H*.55,72,27,-.55,.75);
-  makeLeaf(W*.67,H*.55,75,28,.55,.9);
-  makeLeaf(W*.44,H*.62,85,30,-.28,1);
-  makeLeaf(W*.59,H*.62,82,30,.30,1.1);
-
-  startTime=performance.now();
-}
-
-/* =========================
-   动画
-========================= */
-
-function animate(now){
-
-  const t=(now-startTime)/1000;
-
-  ctx.fillStyle="rgba(7,4,3,.16)";
-  ctx.fillRect(0,0,W,H);
-
-  for(const p of particles){
-
-    const local=t-p.delay;
-
-    let progress=Math.max(
+    let q=Math.max(
       0,
-      Math.min(1,local/p.duration)
+      Math.min(
+        1,
+        (t-p.delay)/1.2
+      )
     );
 
     /*
-      快速集结
+      快速聚集
     */
-    const ease=1-Math.pow(1-progress,4);
 
-    let x=p.sx+(p.tx-p.sx)*ease;
-    let y=p.sy+(p.ty-p.sy)*ease;
+    q=1-Math.pow(1-q,4);
 
-    /*
-      完成后轻微呼吸
-    */
-    if(progress>=1){
-
-      const amp=
-        p.type==="flower" ? 1.8 :
-        p.type==="center" ? 1 :
-        .6;
-
-      x+=Math.sin(t*1.7+p.phase)*amp;
-      y+=Math.cos(t*1.5+p.phase)*amp;
-    }
-
-    /*
-      粒子微微闪烁
-    */
-    const flicker=
-      .85+
-      Math.sin(t*3+p.phase)*.15;
+    const x=p.x+(p.tx-p.x)*q;
+    const y=p.y+(p.ty-p.y)*q;
 
     ctx.beginPath();
 
-    ctx.globalAlpha=flicker;
-
     ctx.fillStyle=p.color;
-
-    ctx.shadowBlur=
-      p.type==="center" ? 14 : 6;
-
     ctx.shadowColor=p.color;
+    ctx.shadowBlur=8;
 
     ctx.arc(
       x,
@@ -297,17 +122,16 @@ function animate(now){
     ctx.fill();
   }
 
-  ctx.globalAlpha=1;
   ctx.shadowBlur=0;
 
-  requestAnimationFrame(animate);
+  requestAnimationFrame(draw);
 }
 
+resize();
 addEventListener("resize",resize);
 
-resize();
-requestAnimationFrame(animate);
-</scrip
+requestAnimationFrame(draw);
 </script>
+
 </body>
 </html>
