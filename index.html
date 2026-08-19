@@ -27,139 +27,211 @@ let w,h;
 let particles=[];
 let start;
 
-/* 花束配色 */
-const flowerColors=[
-  "#ff6500", // 橙
-  "#ff8120",
-  "#ff9b32",
-  "#ffb36b",
-  "#ff8fa3", // 粉
-  "#ffc0c9",
-  "#fff1df", // 奶白
-  "#fff8ec"
+/* =========================
+   配色
+========================= */
+
+const orange=[
+  "#ff641f",
+  "#ff7b2f",
+  "#ff9348",
+  "#ffad63"
 ];
 
-const leafColors=[
-  "#56752f",
-  "#76964a",
-  "#9caf68"
+const pink=[
+  "#ff8fa3",
+  "#ffb0bd",
+  "#ffd0d7"
 ];
 
-function resize(){
-  w=canvas.width=innerWidth;
-  h=canvas.height=innerHeight;
-  createParticles();
-  start=performance.now();
-}
+const cream=[
+  "#ffe9d2",
+  "#fff4e5",
+  "#fffaf1"
+];
+
+const green=[
+  "#506d35",
+  "#6f8f49",
+  "#91aa62"
+];
+
+/* =========================
+   基础粒子
+========================= */
 
 function add(x,y,tx,ty,delay,type,color){
 
   particles.push({
-    x,y,tx,ty,
+    x,y,
+    tx,ty,
     delay,
     type,
     color,
-    size:.28+Math.random()*.58,
+    size:.22+Math.random()*.55,
     phase:Math.random()*Math.PI*2,
-    duration:.75+Math.random()*.45
+    speed:.7+Math.random()*.5
   });
 }
 
-/* 单朵花 */
+/* =========================
+   花瓣
+   用极坐标制造真正的花瓣形状
+========================= */
+
+function petal(cx,cy,r,angle,delay,color){
+
+  const count=150;
+
+  for(let i=0;i<count;i++){
+
+    const u=Math.random();
+    const v=Math.random();
+
+    /*
+      花瓣从花心向外变宽，
+      外缘再稍微收拢
+    */
+    const length=r*(.15+.85*u);
+
+    const width=
+      r*.30*
+      Math.sin(Math.PI*u)*
+      (.65+.35*Math.random());
+
+    const side=(v-.5)*2;
+
+    /*
+      花瓣轻微弯曲
+    */
+    const bend=
+      Math.sin(u*Math.PI)*r*.12;
+
+    let x=length;
+    let y=side*width+bend;
+
+    const ca=Math.cos(angle);
+    const sa=Math.sin(angle);
+
+    const tx=
+      cx+x*ca-y*sa;
+
+    const ty=
+      cy+x*sa+y*ca;
+
+    add(
+      w/2+(Math.random()-.5)*120,
+      h+Math.random()*120,
+      tx,
+      ty,
+      delay+Math.random()*.2,
+      "petal",
+      color
+    );
+  }
+}
+
+/* =========================
+   一朵花
+========================= */
+
 function flower(cx,cy,r,delay){
 
-  /* 外层花瓣 */
-  for(let i=0;i<620;i++){
+  const petals=7;
 
-    const a=Math.random()*Math.PI*2;
+  for(let i=0;i<petals;i++){
 
-    const petals=
-      .62+
-      .38*Math.pow(
-        Math.abs(Math.cos(a*5)),
-        1.8
-      );
-
-    const rr=
-      r*(.18+.82*Math.sqrt(Math.random()))*
-      petals;
-
-    const tx=cx+Math.cos(a)*rr;
-    const ty=cy+Math.sin(a)*rr*.72;
+    const angle=
+      i*Math.PI*2/petals+
+      Math.random()*.15;
 
     let color;
 
     const roll=Math.random();
 
-    if(roll<.58)
-      color=flowerColors[Math.floor(Math.random()*4)];
-    else if(roll<.82)
-      color=flowerColors[4+Math.floor(Math.random()*2)];
-    else
-      color=flowerColors[6+Math.floor(Math.random()*2)];
+    if(roll<.55){
+      color=orange[
+        Math.floor(Math.random()*orange.length)
+      ];
+    }
+    else if(roll<.82){
+      color=pink[
+        Math.floor(Math.random()*pink.length)
+      ];
+    }
+    else{
+      color=cream[
+        Math.floor(Math.random()*cream.length)
+      ];
+    }
 
-    add(
-      w/2+(Math.random()-.5)*120,
-      h+Math.random()*120,
-      tx,ty,
-      delay+Math.random()*.22,
-      "flower",
+    petal(
+      cx,
+      cy,
+      r,
+      angle,
+      delay+i*.025,
       color
     );
   }
 
+  /* 第二层花瓣 */
+  for(let i=0;i<5;i++){
+
+    const angle=
+      i*Math.PI*2/5+
+      .3;
+
+    petal(
+      cx,
+      cy,
+      r*.62,
+      angle,
+      delay+.18,
+      Math.random()<.65
+        ? "#ff8b45"
+        : "#ffb7c2"
+    );
+  }
+
   /* 花心 */
-  for(let i=0;i<180;i++){
+  for(let i=0;i<110;i++){
 
     const a=Math.random()*Math.PI*2;
-    const rr=Math.sqrt(Math.random())*r*.22;
+    const rr=Math.sqrt(Math.random())*r*.17;
 
     add(
       w/2+(Math.random()-.5)*100,
       h+Math.random()*100,
       cx+Math.cos(a)*rr,
       cy+Math.sin(a)*rr,
-      delay,
+      delay+.25,
       "center",
-      Math.random()<.55 ? "#fff1df" : "#ffc04a"
+      Math.random()<.5
+        ? "#fff4df"
+        : "#ffc46b"
     );
   }
 }
 
-/* 花茎 */
-function stem(x,top,bottom,delay){
+/* =========================
+   叶子
+========================= */
 
-  for(let i=0;i<330;i++){
-
-    const y=top+Math.random()*(bottom-top);
-
-    const curve=
-      x+
-      Math.sin(y*.022)*7+
-      (y-top)*.035;
-
-    add(
-      w/2+(Math.random()-.5)*90,
-      h+Math.random()*120,
-      curve+(Math.random()-.5)*4,
-      y,
-      delay+Math.random()*.18,
-      "stem",
-      leafColors[Math.floor(Math.random()*leafColors.length)]
-    );
-  }
-}
-
-/* 叶子 */
 function leaf(cx,cy,rx,ry,angle,delay){
 
-  for(let i=0;i<260;i++){
+  for(let i=0;i<230;i++){
 
     const a=(Math.random()-.5)*Math.PI;
     const rr=Math.sqrt(Math.random());
 
     let x=Math.cos(a)*rx*rr;
     let y=Math.sin(a)*ry*rr;
+
+    /*
+      叶尖稍微拉长
+    */
+    x*=1+.25*Math.abs(Math.cos(a));
 
     const tx=
       cx+x*Math.cos(angle)-y*Math.sin(angle);
@@ -170,114 +242,102 @@ function leaf(cx,cy,rx,ry,angle,delay){
     add(
       w/2+(Math.random()-.5)*100,
       h+Math.random()*100,
-      tx,ty,
-      delay+Math.random()*.16,
+      tx,
+      ty,
+      delay+Math.random()*.15,
       "leaf",
-      leafColors[Math.floor(Math.random()*leafColors.length)]
+      green[Math.floor(Math.random()*green.length)]
     );
   }
 }
+
+/* =========================
+   花茎
+========================= */
+
+function stem(x,top,bottom,delay){
+
+  for(let i=0;i<280;i++){
+
+    const y=
+      top+
+      Math.random()*(bottom-top);
+
+    const curve=
+      Math.sin((y-top)*.018)*7+
+      (y-top)*.035;
+
+    add(
+      w/2+(Math.random()-.5)*90,
+      h+Math.random()*120,
+      x+curve+(Math.random()-.5)*3,
+      y,
+      delay+Math.random()*.12,
+      "stem",
+      green[Math.floor(Math.random()*green.length)]
+    );
+  }
+}
+
+/* =========================
+   花束布局
+========================= */
 
 function createParticles(){
 
   particles=[];
 
-  /*
-    中间高、两边低
-    让整体更像真正捧花
-  */
   const flowers=[
-    [w*.34,h*.35,47,.15],
-    [w*.45,h*.27,58,.30],
-    [w*.57,h*.30,55,.45],
-    [w*.68,h*.36,47,.60],
 
-    [w*.40,h*.44,43,.76],
-    [w*.54,h*.43,49,.88],
-    [w*.64,h*.46,42,1.00]
+    /* 中间最高 */
+    [w*.50,h*.25,58,.15],
+
+    /* 左右 */
+    [w*.38,h*.32,50,.32],
+    [w*.62,h*.31,51,.46],
+
+    /* 外侧 */
+    [w*.29,h*.40,42,.60],
+    [w*.71,h*.40,43,.72],
+
+    /* 下层 */
+    [w*.41,h*.44,45,.84],
+    [w*.58,h*.44,46,.96]
   ];
 
-  /* 茎 */
+  /*
+    先长茎
+  */
   flowers.forEach((f,i)=>{
+
+    const stemX=
+      w*.5+
+      (f[0]-w*.5)*.22;
+
     stem(
-      w*.5+(f[0]-w*.5)*.25,
+      stemX,
       f[1],
       h*.84,
-      i*.045
+      i*.04
     );
   });
 
-  /* 花 */
+  /*
+    再长花
+  */
   flowers.forEach(f=>{
-    flower(f[0],f[1],f[2],f[3]);
+    flower(
+      f[0],
+      f[1],
+      f[2],
+      f[3]
+    );
   });
 
-  /* 叶子 */
-  leaf(w*.34,h*.56,65,23,-.55,.65);
-  leaf(w*.67,h*.55,66,23,.55,.72);
-
-  leaf(w*.43,h*.63,72,24,-.28,.82);
-  leaf(w*.58,h*.63,70,24,.30,.90);
-}
-
-function draw(now){
-
-  const t=(now-start)/1000;
-
-  ctx.fillStyle="rgba(5,3,2,.18)";
-  ctx.fillRect(0,0,w,h);
-
-  for(const p of particles){
-
-    let q=(t-p.delay)/p.duration;
-
-    q=Math.max(0,Math.min(1,q));
-
-    /* 柔和聚拢 */
-    q=1-Math.pow(1-q,4);
-
-    let x=p.x+(p.tx-p.x)*q;
-    let y=p.y+(p.ty-p.y)*q;
-
-    if(q>=1){
-
-      /* 花束轻微呼吸 */
-      x+=Math.sin(t*1.35+p.phase)*.55;
-      y+=Math.cos(t*1.15+p.phase)*.55;
-    }
-
-    ctx.beginPath();
-
-    ctx.globalAlpha=
-      .62+
-      Math.sin(t*2.7+p.phase)*.25;
-
-    ctx.fillStyle=p.color;
-
-    ctx.shadowColor=p.color;
-    ctx.shadowBlur=
-      p.type==="center" ? 7 : 2.5;
-
-    ctx.arc(
-      x,y,
-      p.size,
-      0,
-      Math.PI*2
-    );
-
-    ctx.fill();
-  }
-
-  ctx.globalAlpha=1;
-  ctx.shadowBlur=0;
-
-  requestAnimationFrame(draw);
-}
-
-addEventListener("resize",resize);
-
-resize();
-requestAnimationFrame(draw);
-</script>
-</body>
-</html>
+  /*
+    叶子
+  */
+  leaf(
+    w*.33,
+    h*.53,
+    70,2
