@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Particle Bouquet 🧡</title>
+<title>🧡 Particle Bouquet</title>
 <style>
 html,body{
-  margin:0;
-  width:100%;
-  height:100%;
-  overflow:hidden;
-  background:#050302;
+    margin:0;
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    background:#050302;
 }
 canvas{display:block}
 </style>
@@ -25,319 +25,603 @@ const ctx=canvas.getContext("2d");
 
 let w,h;
 let particles=[];
-let start;
+let time=0;
+
+function resize(){
+    w=canvas.width=window.innerWidth;
+    h=canvas.height=window.innerHeight;
+}
+window.addEventListener("resize",resize);
+resize();
 
 /* =========================
    配色
 ========================= */
 
-const orange=[
-  "#ff641f",
-  "#ff7b2f",
-  "#ff9348",
-  "#ffad63"
-];
+const colors={
+    petal:[
+        "#ff6418",
+        "#ff7624",
+        "#ff8b35",
+        "#ffa04d",
+        "#ffb86c",
 
-const pink=[
-  "#ff8fa3",
-  "#ffb0bd",
-  "#ffd0d7"
-];
+        "#ff8fa3",
+        "#ffabb8",
+        "#ffc5ce",
 
-const cream=[
-  "#ffe9d2",
-  "#fff4e5",
-  "#fffaf1"
-];
+        "#ffe7d0",
+        "#fff1df",
+        "#fff8ed"
+    ],
 
-const green=[
-  "#506d35",
-  "#6f8f49",
-  "#91aa62"
-];
+    center:[
+        "#ffd27a",
+        "#ffe5b5",
+        "#fff3dc"
+    ],
+
+    wrapper:[
+        "#d8b79c",
+        "#e4c6aa",
+        "#edd5bd",
+        "#f2dfcf"
+    ],
+
+    ribbon:[
+        "#e9a99e",
+        "#f0b8ae",
+        "#f5cbc0"
+    ]
+};
 
 /* =========================
-   基础粒子
+   捧花尺寸
 ========================= */
 
-function add(x,y,tx,ty,delay,type,color){
+let BOUQUET_RADIUS;
 
-  particles.push({
-    x,y,
-    tx,ty,
-    delay,
-    type,
-    color,
-    size:.22+Math.random()*.55,
-    phase:Math.random()*Math.PI*2,
-    speed:.7+Math.random()*.5
-  });
+function updateSize(){
+    BOUQUET_RADIUS=Math.min(w,h)*0.27;
 }
 
-/* =========================
-   花瓣
-   用极坐标制造真正的花瓣形状
-========================= */
+updateSize();
 
-function petal(cx,cy,r,angle,delay,color){
+class Particle{
 
-  const count=150;
+    constructor(x,y,z,type,color){
 
-  for(let i=0;i<count;i++){
+        this.x=x;
+        this.y=y;
+        this.z=z;
 
-    const u=Math.random();
-    const v=Math.random();
+        this.origX=x;
+        this.origY=y;
+        this.origZ=z;
 
-    /*
-      花瓣从花心向外变宽，
-      外缘再稍微收拢
-    */
-    const length=r*(.15+.85*u);
+        this.type=type;
+        this.color=color;
 
-    const width=
-      r*.30*
-      Math.sin(Math.PI*u)*
-      (.65+.35*Math.random());
+        this.phase=Math.random()*Math.PI*2;
 
-    const side=(v-.5)*2;
+        /* 粒子明显缩小 */
+        this.size=
+            type==="center"
+            ? .8+Math.random()*1.5
+            : type==="wrapper"
+            ? .55+Math.random()*1.2
+            : .7+Math.random()*1.7;
+    }
 
-    /*
-      花瓣轻微弯曲
-    */
-    const bend=
-      Math.sin(u*Math.PI)*r*.12;
+    update(angle){
 
-    let x=length;
-    let y=side*width+bend;
+        const cosA=Math.cos(angle);
+        const sinA=Math.sin(angle);
 
-    const ca=Math.cos(angle);
-    const sa=Math.sin(angle);
+        this.x=
+            this.origX*cosA-
+            this.origZ*sinA;
 
-    const tx=
-      cx+x*ca-y*sa;
+        this.z=
+            this.origX*sinA+
+            this.origZ*cosA;
 
-    const ty=
-      cy+x*sa+y*ca;
+        /* 很轻的呼吸 */
+        this.y=
+            this.origY+
+            Math.sin(time*.6+this.phase)*.8;
 
-    add(
-      w/2+(Math.random()-.5)*120,
-      h+Math.random()*120,
-      tx,
-      ty,
-      delay+Math.random()*.2,
-      "petal",
-      color
-    );
-  }
+        const scale=
+            .82+
+            (this.z/BOUQUET_RADIUS+1)*.22;
+
+        this.displaySize=
+            this.size*
+            Math.max(.45,Math.min(1.3,scale));
+
+        this.alpha=
+            .55+
+            (this.z/BOUQUET_RADIUS+1)*.18;
+    }
+
+    draw(){
+
+        const perspective=
+            1+
+            this.z/BOUQUET_RADIUS*.25;
+
+        const px=
+            w/2+
+            this.x*perspective;
+
+        const py=
+            h*.43+
+            this.y*perspective;
+
+        ctx.save();
+
+        ctx.globalAlpha=
+            Math.min(1,this.alpha);
+
+        ctx.translate(px,py);
+
+        const s=this.displaySize;
+
+        ctx.fillStyle=this.color;
+
+        if(this.type==="center"){
+
+            ctx.shadowColor=this.color;
+            ctx.shadowBlur=5;
+
+            ctx.beginPath();
+            ctx.arc(
+                0,0,
+                s*.7,
+                0,
+                Math.PI*2
+            );
+            ctx.fill();
+
+        }else if(this.type==="wrapper"){
+
+            ctx.shadowBlur=1;
+
+            ctx.beginPath();
+            ctx.arc(
+                0,0,
+                s,
+                0,
+                Math.PI*2
+            );
+            ctx.fill();
+
+        }else{
+
+            /*
+              粒子仍然是细小的，
+              但带一点花瓣方向
+            */
+
+            ctx.shadowColor=this.color;
+            ctx.shadowBlur=3;
+
+            ctx.beginPath();
+
+            ctx.ellipse(
+                0,
+                -s*.18,
+                s*.42,
+                s*.72,
+                0,
+                0,
+                Math.PI*2
+            );
+
+            ctx.fill();
+        }
+
+        ctx.restore();
+    }
 }
 
+
 /* =========================
-   一朵花
+   创建单朵立体花
 ========================= */
 
-function flower(cx,cy,r,delay){
+function createFlower(cx,cy,r,depth){
 
-  const petals=7;
+    /*
+      外层 → 内层
+      每一层越来越小
+    */
 
-  for(let i=0;i<petals;i++){
+    const layers=[
+        {count:720, scale:1.00, spread:.34},
+        {count:560, scale:.82, spread:.28},
+        {count:400, scale:.64, spread:.22},
+        {count:270, scale:.46, spread:.16},
+        {count:170, scale:.30, spread:.10}
+    ];
+
+    layers.forEach((layer,index)=>{
+
+        for(let i=0;i<layer.count;i++){
+
+            const theta=
+                Math.random()*Math.PI*2;
+
+            const rr=
+                Math.sqrt(Math.random())*
+                r*
+                layer.scale;
+
+            /*
+              花瓣不是平面圆，
+              而是向外翻卷
+            */
+
+            const curl=
+                1-
+                (rr/(r*layer.scale))*.22;
+
+            const x=
+                cx+
+                Math.cos(theta)*
+                rr*
+                curl;
+
+            const y=
+                cy+
+                Math.sin(theta)*
+                rr*
+                .48+
+                index*r*.018;
+
+            /*
+              Z 决定立体层次
+*/
+
+            const z=
+                Math.cos(theta)*
+                rr*
+                layer.spread;
+
+            const color=
+                colors.petal[
+                    Math.floor(
+                        Math.random()*
+                        colors.petal.length
+                    )
+                ];
+
+            particles.push(
+                new Particle(
+                    x,
+                    y,
+                    z+depth,
+                    "petal",
+                    color
+                )
+            );
+        }
+    });
+
+    /* 花心 */
+
+    for(let i=0;i<130;i++){
+
+        const theta=
+            Math.random()*Math.PI*2;
+
+        const rr=
+            Math.sqrt(Math.random())*
+            r*.18;
+
+        const x=
+            cx+
+            Math.cos(theta)*rr;
+
+        const y=
+            cy+
+            Math.sin(theta)*rr*.45;
+
+        const z=
+            depth+
+            (Math.random()-.5)*r*.12;
+
+        particles.push(
+            new Particle(
+                x,y,z,
+                "center",
+                colors.center[
+                    Math.floor(
+                        Math.random()*
+                        colors.center.length
+                    )
+                ]
+            )
+        );
+    }
+}
+
+
+/* =========================
+   包装纸
+   宽、短、包住花
+========================= */
+
+function createWrapper(){
+
+    const top=h*.57;
+    const bottom=h*.70;
+
+    for(let i=0;i<850;i++){
+
+        const u=Math.random();
+
+        const y=
+            top+
+            (bottom-top)*u;
+
+        /*
+          上口很宽，
+          底部快速收拢
+        */
+
+        const half=
+            w*.19*(1-u*.72)+
+            w*.018;
+
+        const x=
+            w/2+
+            (Math.random()-.5)*
+            half*2;
+
+        /*
+          包装纸轻微前后起伏
+        */
+
+        const z=
+            (Math.random()-.5)*
+            w*.035;
+
+        particles.push(
+            new Particle(
+                x,
+                y,
+                z,
+                "wrapper",
+                colors.wrapper[
+                    Math.floor(
+                        Math.random()*
+                        colors.wrapper.length
+                    )
+                ]
+            )
+        );
+    }
+
+    /* 束口丝带 */
+
+    for(let i=0;i<140;i++){
+
+        const x=
+            w/2+
+            (Math.random()-.5)*
+            w*.06;
+
+        const y=
+            h*.685+
+            (Math.random()-.5)*
+            h*.025;
+
+        particles.push(
+            new Particle(
+                x,
+                y,
+                .02,
+                "wrapper",
+                colors.ribbon[
+                    Math.floor(
+                        Math.random()*
+                        colors.ribbon.length
+                    )
+                ]
+            )
+        );
+    }
+}
+
+
+/* =========================
+   创建整束花
+========================= */
+
+function createBouquet(){
+
+    particles=[];
+
+    updateSize();
+
+    const flowers=[
+
+        /* 后排 */
+        {
+            x:-.13,
+            y:-.08,
+            r:.22,
+            z:-.08
+        },
+
+        {
+            x:0,
+            y:-.15,
+            r:.27,
+            z:-.02
+        },
+
+        {
+            x:.13,
+            y:-.08,
+            r:.22,
+            z:-.08
+        },
+
+        /* 中排 */
+        {
+            x:-.18,
+            y:.06,
+            r:.23,
+            z:.04
+        },
+
+        {
+            x:-.06,
+            y:.03,
+            r:.25,
+            z:.09
+        },
+
+        {
+            x:.07,
+            y:.03,
+            r:.25,
+            z:.09
+        },
+
+        {
+            x:.19,
+            y:.06,
+            r:.23,
+            z:.04
+        },
+
+        /* 前排 */
+        {
+            x:-.11,
+            y:.15,
+            r:.22,
+            z:.16
+        },
+
+        {
+            x:.01,
+            y:.14,
+            r:.25,
+            z:.20
+        },
+
+        {
+            x:.13,
+            y:.15,
+            r:.22,
+            z:.16
+        }
+    ];
+
+    flowers.forEach(f=>{
+
+        createFlower(
+            w/2+
+            f.x*
+            BOUQUET_RADIUS*2.2,
+
+            f.y*
+            BOUQUET_RADIUS*2.2,
+
+            f.r*
+            BOUQUET_RADIUS*2.2,
+
+            f.z*
+            BOUQUET_RADIUS*2
+        );
+    });
+
+    createWrapper();
+}
+
+
+/* =========================
+   动画
+========================= */
+
+function animate(){
+
+    time+=.018;
+
+    /*
+      非常慢的旋转
+      不会晃得像陀螺
+    */
 
     const angle=
-      i*Math.PI*2/petals+
-      Math.random()*.15;
+        Math.sin(time*.35)*.16;
 
-    let color;
-
-    const roll=Math.random();
-
-    if(roll<.55){
-      color=orange[
-        Math.floor(Math.random()*orange.length)
-      ];
-    }
-    else if(roll<.82){
-      color=pink[
-        Math.floor(Math.random()*pink.length)
-      ];
-    }
-    else{
-      color=cream[
-        Math.floor(Math.random()*cream.length)
-      ];
-    }
-
-    petal(
-      cx,
-      cy,
-      r,
-      angle,
-      delay+i*.025,
-      color
+    ctx.clearRect(
+        0,0,w,h
     );
-  }
-
-  /* 第二层花瓣 */
-  for(let i=0;i<5;i++){
-
-    const angle=
-      i*Math.PI*2/5+
-      .3;
-
-    petal(
-      cx,
-      cy,
-      r*.62,
-      angle,
-      delay+.18,
-      Math.random()<.65
-        ? "#ff8b45"
-        : "#ffb7c2"
-    );
-  }
-
-  /* 花心 */
-  for(let i=0;i<110;i++){
-
-    const a=Math.random()*Math.PI*2;
-    const rr=Math.sqrt(Math.random())*r*.17;
-
-    add(
-      w/2+(Math.random()-.5)*100,
-      h+Math.random()*100,
-      cx+Math.cos(a)*rr,
-      cy+Math.sin(a)*rr,
-      delay+.25,
-      "center",
-      Math.random()<.5
-        ? "#fff4df"
-        : "#ffc46b"
-    );
-  }
-}
-
-/* =========================
-   叶子
-========================= */
-
-function leaf(cx,cy,rx,ry,angle,delay){
-
-  for(let i=0;i<230;i++){
-
-    const a=(Math.random()-.5)*Math.PI;
-    const rr=Math.sqrt(Math.random());
-
-    let x=Math.cos(a)*rx*rr;
-    let y=Math.sin(a)*ry*rr;
 
     /*
-      叶尖稍微拉长
+      极淡背景星尘
     */
-    x*=1+.25*Math.abs(Math.cos(a));
 
-    const tx=
-      cx+x*Math.cos(angle)-y*Math.sin(angle);
+    ctx.fillStyle=
+        "rgba(255,255,255,.035)";
 
-    const ty=
-      cy+x*Math.sin(angle)+y*Math.cos(angle);
+    for(let i=0;i<45;i++){
 
-    add(
-      w/2+(Math.random()-.5)*100,
-      h+Math.random()*100,
-      tx,
-      ty,
-      delay+Math.random()*.15,
-      "leaf",
-      green[Math.floor(Math.random()*green.length)]
+        const sx=
+            (i*137.5+50)%w;
+
+        const sy=
+            (i*97.3+20)%h;
+
+        ctx.beginPath();
+
+        ctx.arc(
+            sx,
+            sy,
+            .35+
+            Math.sin(
+                i+time*.3
+            )*.3,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+    }
+
+    /*
+      先画远处，再画近处
+     */
+
+    particles.sort(
+        (a,b)=>a.z-b.z
     );
-  }
+
+    particles.forEach(p=>{
+        p.update(angle);
+        p.draw();
+    });
+
+    requestAnimationFrame(
+        animate
+    );
 }
 
-/* =========================
-   花茎
-========================= */
+createBouquet();
+animate();
 
-function stem(x,top,bottom,delay){
-
-  for(let i=0;i<280;i++){
-
-    const y=
-      top+
-      Math.random()*(bottom-top);
-
-    const curve=
-      Math.sin((y-top)*.018)*7+
-      (y-top)*.035;
-
-    add(
-      w/2+(Math.random()-.5)*90,
-      h+Math.random()*120,
-      x+curve+(Math.random()-.5)*3,
-      y,
-      delay+Math.random()*.12,
-      "stem",
-      green[Math.floor(Math.random()*green.length)]
-    );
-  }
-}
-
-/* =========================
-   花束布局
-========================= */
-
-function createParticles(){
-
-  particles=[];
-
-  const flowers=[
-
-    /* 中间最高 */
-    [w*.50,h*.25,58,.15],
-
-    /* 左右 */
-    [w*.38,h*.32,50,.32],
-    [w*.62,h*.31,51,.46],
-
-    /* 外侧 */
-    [w*.29,h*.40,42,.60],
-    [w*.71,h*.40,43,.72],
-
-    /* 下层 */
-    [w*.41,h*.44,45,.84],
-    [w*.58,h*.44,46,.96]
-  ];
-
-  /*
-    先长茎
-  */
-  flowers.forEach((f,i)=>{
-
-    const stemX=
-      w*.5+
-      (f[0]-w*.5)*.22;
-
-    stem(
-      stemX,
-      f[1],
-      h*.84,
-      i*.04
-    );
-  });
-
-  /*
-    再长花
-  */
-  flowers.forEach(f=>{
-    flower(
-      f[0],
-      f[1],
-      f[2],
-      f[3]
-    );
-  });
-
-  /*
-    叶子
-  */
-  leaf(
-    w*.33,
-    h*.53,
-    70,2
+window.addEventListener(
+    "resize",
+    ()=>{
+        resize();
+        createBouquet();
+    }
+);
+</script>
+</body>
+</html> 
